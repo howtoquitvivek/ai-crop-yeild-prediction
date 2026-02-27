@@ -1,0 +1,517 @@
+openapi: 3.0.3
+info:
+  title: aicyp API
+  version: 1.0.0
+  description: AI-based Crop Yield Prediction REST API
+
+servers:
+  - url: /api/v1
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  /auth/me:
+    get:
+      summary: Get authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Authenticated user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+
+  /farms:
+    post:
+      summary: Create farm
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFarmRequest'
+      responses:
+        '200':
+          description: Farm created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FarmResponse'
+
+    get:
+      summary: Get farms (paginated)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Paginated farms
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedFarmResponse'
+
+  /farms/{farmId}:
+    get:
+      summary: Get farm by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/FarmId'
+      responses:
+        '200':
+          description: Farm details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FarmResponse'
+
+    put:
+      summary: Update farm
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/FarmId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFarmRequest'
+      responses:
+        '200':
+          description: Farm updated
+
+    delete:
+      summary: Soft delete farm
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/FarmId'
+      responses:
+        '200':
+          description: Farm deleted
+
+  /predictions/generate:
+    post:
+      summary: Generate yield prediction
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeneratePredictionRequest'
+      responses:
+        '200':
+          description: Prediction generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PredictionResponse'
+
+  /predictions:
+    get:
+      summary: Get predictions (paginated)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: farmId
+          in: query
+          schema:
+            type: string
+        - name: riskLevel
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Paginated predictions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPredictionResponse'
+
+  /predictions/{predictionId}:
+    get:
+      summary: Get prediction by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: predictionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Prediction details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PredictionResponse'
+
+  /predictions/{predictionId}/feedback:
+    post:
+      summary: Submit prediction feedback
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: predictionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PredictionFeedbackRequest'
+      responses:
+        '200':
+          description: Feedback submitted
+
+  /recommendations/generate:
+    post:
+      summary: Generate recommendations
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeneratePredictionRequest'
+      responses:
+        '200':
+          description: Recommendation generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationResponse'
+
+  /meta/crops:
+    get:
+      summary: Get supported crops
+      responses:
+        '200':
+          description: Crop list
+
+  /meta/districts:
+    get:
+      summary: Get supported districts
+      responses:
+        '200':
+          description: District list
+
+  /meta/soil-types:
+    get:
+      summary: Get soil types
+      responses:
+        '200':
+          description: Soil types
+
+  /meta/irrigation-types:
+    get:
+      summary: Get irrigation types
+      responses:
+        '200':
+          description: Irrigation types
+
+  /analytics/overview:
+    get:
+      summary: Dashboard overview
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Analytics overview
+
+  /analytics/yield-trend:
+    get:
+      summary: Yield trend
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: farmId
+          in: query
+          schema:
+            type: string
+        - name: year
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Yield trend data
+
+  /analytics/risk-distribution:
+    get:
+      summary: Risk distribution
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Risk distribution data
+
+  /health:
+    get:
+      summary: System health
+      security: []
+      responses:
+        '200':
+          description: Health status
+
+  /health/ml:
+    get:
+      summary: ML service health
+      security: []
+      responses:
+        '200':
+          description: ML health status
+
+  /health/database:
+    get:
+      summary: Database health
+      security: []
+      responses:
+        '200':
+          description: Database health status
+
+  /admin/models:
+    get:
+      summary: Get ML model versions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Model versions
+
+  /admin/models/activate/{version}:
+    put:
+      summary: Activate model version
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Model activated
+
+  /admin/users:
+    get:
+      summary: Get users (paginated)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Users list
+
+  /admin/users/{uid}/role:
+    put:
+      summary: Update user role
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Role updated
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 0
+
+    Size:
+      name: size
+      in: query
+      schema:
+        type: integer
+        default: 10
+
+    Sort:
+      name: sort
+      in: query
+      schema:
+        type: string
+
+    FarmId:
+      name: farmId
+      in: path
+      required: true
+      schema:
+        type: string
+
+  schemas:
+
+    UserResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            uid:
+              type: string
+            role:
+              type: string
+            createdAt:
+              type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+
+    CreateFarmRequest:
+      type: object
+      required:
+        - name
+        - district
+        - crop
+      properties:
+        name:
+          type: string
+        district:
+          type: string
+        crop:
+          type: string
+        landSize:
+          type: number
+        irrigationType:
+          type: string
+        soilType:
+          type: string
+
+    FarmResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+        message:
+          type: string
+        timestamp:
+          type: string
+
+    GeneratePredictionRequest:
+      type: object
+      required:
+        - farmId
+      properties:
+        farmId:
+          type: string
+
+    PredictionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            predictionId:
+              type: string
+            predictedYield:
+              type: number
+            confidence:
+              type: number
+            modelVersion:
+              type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+
+    PredictionFeedbackRequest:
+      type: object
+      properties:
+        actualYield:
+          type: number
+        notes:
+          type: string
+
+    RecommendationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            irrigationPlan:
+              type: array
+              items:
+                type: string
+            fertilizerPlan:
+              type: array
+              items:
+                type: string
+            pestRisk:
+              type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+
+    PaginatedFarmResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+        message:
+          type: string
+        timestamp:
+          type: string
+
+    PaginatedPredictionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+        message:
+          type: string
+        timestamp:
+          type: string
