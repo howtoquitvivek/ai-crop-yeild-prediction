@@ -7,9 +7,12 @@ The structure is mandatory and must be preserved to ensure:
 * Separation of concerns
 * Service isolation
 * Clean architecture
+* Feature modularity
 * Testability
 * CI/CD compatibility
 * Production readiness
+
+The structure enforces architectural boundaries and must not be modified casually.
 
 ---
 
@@ -21,55 +24,176 @@ aicyp/
 ├── ml-service/
 ├── frontend/
 ├── infra/
+├── config/
+├── docs/
 ├── .editorconfig
 ├── .gitignore
+├── README.md
+└── LICENSE
 ```
+
+Each top-level folder represents an isolated system component.
 
 ---
 
-## Backend — Spring Boot Service
+# Backend — Spring Boot Service (Feature-Based Packaging)
+
+The backend follows **feature-based packaging**, not layer-based packaging.
+
+This ensures scalability and clear domain ownership.
 
 ```
 backend/
 ├── src/main/java/com/aicyp/
 │   ├── AicypApplication.java
+│   │
+│   ├── common/
+│   │   ├── exception/
+│   │   └── util/
+│   │
 │   ├── config/
 │   ├── security/
-│   ├── controller/
-│   ├── service/
-│   ├── repository/
-│   ├── model/
-│   ├── dto/request/
-│   ├── dto/response/
-│   ├── mapper/
-│   ├── exception/
-│   └── util/
+│   │
+│   └── domain/
+│       ├── admin/
+│       ├── analytics/
+│       ├── farm/
+│       ├── health/
+│       ├── meta/
+│       ├── prediction/
+│       │   └── client/
+│       ├── recommendation/
+│       └── user/
+│
 ├── src/main/resources/
 │   ├── application.yml
 │   ├── application-dev.yml
 │   ├── application-prod.yml
 │   └── logback-spring.xml
-├── src/test/java/com/aicyp/
-│   ├── controller/
-│   ├── service/
-│   └── integration/
+│
+├── src/test/java/com/aicyp/domain/
+│   ├── farm/
+│   ├── prediction/
+│   └── ...
+│
 ├── checkstyle.xml
 ├── Dockerfile
 └── pom.xml
 ```
 
-Design rules:
+---
 
-* Controllers must contain no business logic.
-* Services must contain domain logic.
-* Repositories must only contain data access.
-* Entities must never be exposed directly.
-* DTOs define API contracts.
-* GlobalExceptionHandler handles all errors centrally.
+## Backend Architectural Rules
+
+### 1. Feature-Based Packaging (Mandatory)
+
+Each feature inside `domain/` must contain:
+
+* Controller
+* Service
+* Repository (if required)
+* Entity (if required)
+* DTOs
+* Optional internal helpers
+
+Everything related to a feature must live inside that feature folder.
+
+No cross-feature scattering is allowed.
 
 ---
 
-## ML Service — Python Microservice
+### 2. Global Packages
+
+The following remain outside `domain/`:
+
+* `config/` — Application configuration
+* `security/` — Authentication and authorization logic
+* `common/` — Cross-cutting concerns (exceptions, utilities)
+
+These are shared infrastructure components.
+
+---
+
+### 3. Visibility Rules (Very Important)
+
+Feature boundaries must be enforced using Java visibility.
+
+Inside each feature:
+
+* Controllers → `public`
+* DTOs used externally → `public`
+* Services → package-private (no modifier)
+* Repositories → package-private
+* Mappers and helpers → package-private
+
+Example:
+
+```java
+@Service
+class FarmService {
+}
+```
+
+Do not use `public` unless required.
+
+This prevents accidental cross-feature coupling.
+
+---
+
+### 4. Cross-Feature Communication
+
+Features must not directly access other feature internals.
+
+If interaction is required:
+
+* Expose minimal public interfaces
+* Avoid injecting repositories across features
+* Maintain clear domain boundaries
+
+The compiler should enforce modularity.
+
+---
+
+### 5. ML Client Placement
+
+External ML communication must reside in:
+
+```
+domain/prediction/client/
+```
+
+This isolates infrastructure-facing logic from domain logic.
+
+---
+
+### 6. Test Symmetry Rule
+
+Test structure must mirror production structure:
+
+```
+src/test/java/com/aicyp/domain/farm/
+src/test/java/com/aicyp/domain/prediction/
+```
+
+Every feature must have its own test namespace.
+
+---
+
+### 7. No Layer-Based Reintroduction
+
+The following top-level layer folders are forbidden:
+
+* controller/
+* service/
+* repository/
+* model/
+* dto/
+
+All functionality must live under feature folders.
+
+---
+
+# ML Service — Python Microservice
 
 ```
 ml-service/
@@ -77,26 +201,11 @@ ml-service/
 │   ├── main.py
 │   ├── config.py
 │   ├── api/
-│   │   ├── predict.py
-│   │   ├── recommend.py
-│   │   └── health.py
 │   ├── models/
-│   │   ├── baseline_model.py
-│   │   ├── pretrained_model.py
-│   │   ├── ensemble_model.py
-│   │   └── model_loader.py
 │   ├── preprocessing/
-│   │   ├── feature_engineering.py
-│   │   └── validators.py
 │   ├── optimization/
-│   │   ├── irrigation_optimizer.py
-│   │   └── fertilizer_optimizer.py
 │   └── registry/
-│       └── model_registry.py
 ├── tests/
-│   ├── test_predict.py
-│   ├── test_models.py
-│   └── test_preprocessing.py
 ├── requirements.txt
 ├── pyproject.toml
 ├── .flake8
@@ -105,59 +214,62 @@ ml-service/
 
 Design rules:
 
-* API layer must not contain ML logic.
-* Models must be swappable.
-* Preprocessing must be isolated.
-* Model versioning handled via registry.
+* API layer must not contain ML logic
+* Models must be modular and swappable
+* Preprocessing must be isolated
+* Optimization logic must be independent
+* Model registry manages version control
+
+ML service must remain independently deployable.
 
 ---
 
-## Frontend
+# Frontend
 
 ```
 frontend/
 ├── web/
-│   ├── src/
-│   │   ├── api/
-│   │   ├── pages/
-│   │   ├── components/
-│   │   ├── hooks/
-│   │   ├── context/
-│   │   ├── types/
-│   │   └── App.tsx
-│   ├── tests/
-│   │   ├── unit/
-│   │   └── integration/
-│   ├── tsconfig.json
-│   ├── package.json
-│   └── Dockerfile
 ├── admin/
-│   ├── src/
-│   └── package.json
 └── mobile/
-    ├── src/
-    └── package.json
 ```
+
+Rules:
+
+* Web is Phase 1 farmer interface
+* Admin is system management interface
+* Mobile is future Expo application
+* Each frontend module must remain isolated
 
 ---
 
-## Infrastructure
+# Infrastructure
 
 ```
 infra/
 ├── docker/
-│   ├── docker-compose.dev.yml
-│   ├── docker-compose.prod.yml
-│   └── .env.example
 ├── nginx/
-│   └── nginx.conf
 ├── k8s/
 └── scripts/
-    ├── bootstrap.sh
-    └── deploy.sh
 ```
 
-All deployment logic must reside under infra/.
+Rules:
+
+* All deployment logic resides in `infra/`
+* Docker compose files must support local development
+* Production configuration must not mix with development config
+* Kubernetes manifests are future-ready
+
+---
+
+# Architectural Governance Rules
+
+1. No structural changes without documentation update.
+2. No cross-feature direct dependency unless explicitly justified.
+3. All features must follow visibility discipline.
+4. No business logic inside controllers.
+5. Entities must never be exposed directly in API responses.
+6. OpenAPI specification remains the authoritative API contract.
+7. Refactoring structure after stabilization should be minimized.
 
 ---
 
