@@ -1,0 +1,34 @@
+version: "3.9"
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: aicyp-mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: aicyp
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build: ../../backend
+    container_name: aicyp-backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      MONGO_URI: mongodb://mongo:27017/aicyp
+      ML_SERVICE_URL: http://ml-service:8000
+    depends_on:
+      - mongo
+      - ml-service
+
+  ml-service:
+    build: ../../ml-service
+    container_name: aicyp-ml
+    ports:
+      - "8000:8000"
+
+volumes:
+  mongo_data:

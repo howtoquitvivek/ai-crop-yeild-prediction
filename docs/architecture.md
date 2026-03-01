@@ -40,7 +40,25 @@ Each top-level folder represents an isolated system component.
 
 The backend follows **feature-based packaging**, not layer-based packaging.
 
-This ensures scalability and clear domain ownership.
+This ensures scalability, domain isolation, and long-term maintainability.
+
+In addition to structural rules, the backend enforces:
+
+* Stateless authentication (Firebase)
+* Role-based authorization
+* DTO separation
+* Global exception handling
+* Request validation
+* Strict visibility discipline
+* Automated quality enforcement
+
+Detailed backend architecture is defined in: [backend-architecture.md](backend-architecture.md)
+
+This document is authoritative for internal backend mechanics.
+
+---
+
+## Backend Structure
 
 ```
 backend/
@@ -48,11 +66,17 @@ backend/
 │   ├── AicypApplication.java
 │   │
 │   ├── common/
-│   │   ├── exception/
-│   │   └── util/
+│   │   ├── ApiException.java
+│   │   ├── GlobalExceptionHandler.java
+│   │   └── ...
 │   │
 │   ├── config/
+│   │   ├── SecurityConfig.java
+│   │   ├── FirebaseConfig.java
+│   │   └── ...
+│   │
 │   ├── security/
+│   │   └── FirebaseAuthFilter.java
 │   │
 │   └── domain/
 │       ├── admin/
@@ -64,6 +88,14 @@ backend/
 │       │   └── client/
 │       ├── recommendation/
 │       └── user/
+│           ├── User.java
+│           ├── Role.java
+│           ├── UserRepository.java
+│           ├── UserController.java
+│           ├── UserMapper.java
+│           └── dto/
+│               ├── CreateUserRequest.java
+│               └── UserResponse.java
 │
 ├── src/main/resources/
 │   ├── application.yml
@@ -72,8 +104,6 @@ backend/
 │   └── logback-spring.xml
 │
 ├── src/test/java/com/aicyp/domain/
-│   ├── farm/
-│   ├── prediction/
 │   └── ...
 │
 ├── checkstyle.xml
@@ -90,10 +120,11 @@ backend/
 Each feature inside `domain/` must contain:
 
 * Controller
-* Service
-* Repository (if required)
-* Entity (if required)
+* Service (package-private)
+* Repository (package-private)
+* Entity (package-private)
 * DTOs
+* Mapper (package-private)
 * Optional internal helpers
 
 Everything related to a feature must live inside that feature folder.
@@ -102,86 +133,131 @@ No cross-feature scattering is allowed.
 
 ---
 
-### 2. Global Packages
+### 2. Infrastructure Packages
 
-The following remain outside `domain/`:
+Remain outside `domain/`:
 
 * `config/` — Application configuration
-* `security/` — Authentication and authorization logic
-* `common/` — Cross-cutting concerns (exceptions, utilities)
+* `security/` — Authentication and authorization filters
+* `common/` — Exceptions and cross-cutting logic
 
-These are shared infrastructure components.
+These contain shared infrastructure components.
 
 ---
 
-### 3. Visibility Rules (Very Important)
+### 3. Security Model (Mandatory)
 
-Feature boundaries must be enforced using Java visibility.
+The backend enforces:
+
+* Firebase JWT verification
+* Stateless authentication
+* Role-based authorization
+* Method-level access control (`@PreAuthorize`)
+
+All protected endpoints require valid Bearer tokens.
+
+Roles currently supported:
+
+* FARMER
+* ADMIN
+
+Unauthorized access must return HTTP 403.
+
+---
+
+### 4. DTO Separation Rule (Strict)
+
+Entities must never be returned directly.
+
+Controllers must return DTOs only.
+
+Mapping must be explicit via mappers.
+
+This prevents:
+
+* Internal field leakage
+* Accidental schema exposure
+* Tight API coupling to persistence
+
+---
+
+### 5. Validation Layer (Mandatory)
+
+All request bodies must use:
+
+```
+jakarta.validation
+```
+
+Validation failures must return structured 400 responses.
+
+Controllers must use:
+
+```
+@Valid
+```
+
+No manual null-check validation is allowed.
+
+---
+
+### 6. Exception Handling Policy
+
+All exceptions must be handled globally via:
+
+```
+@RestControllerAdvice
+```
+
+Responses must be structured JSON.
+
+No stack traces must leak to clients.
+
+---
+
+### 7. Visibility Discipline
 
 Inside each feature:
 
 * Controllers → `public`
-* DTOs used externally → `public`
-* Services → package-private (no modifier)
+* DTOs → `public`
+* Services → package-private
 * Repositories → package-private
-* Mappers and helpers → package-private
+* Mappers → package-private
+* Entities → package-private (unless required by framework)
 
-Example:
-
-```java
-@Service
-class FarmService {
-}
-```
-
-Do not use `public` unless required.
-
-This prevents accidental cross-feature coupling.
+No unnecessary `public` classes allowed.
 
 ---
 
-### 4. Cross-Feature Communication
+### 8. Quality Enforcement
 
-Features must not directly access other feature internals.
+The backend enforces:
 
-If interaction is required:
+* Checkstyle (code style)
+* Spotless (formatting)
+* SpotBugs (static analysis)
+* JaCoCo (coverage reporting)
 
-* Expose minimal public interfaces
-* Avoid injecting repositories across features
-* Maintain clear domain boundaries
-
-The compiler should enforce modularity.
-
----
-
-### 5. ML Client Placement
-
-External ML communication must reside in:
-
-```
-domain/prediction/client/
-```
-
-This isolates infrastructure-facing logic from domain logic.
+Build failures must block violations.
 
 ---
 
-### 6. Test Symmetry Rule
+### 9. Test Symmetry Rule
 
 Test structure must mirror production structure:
 
 ```
-src/test/java/com/aicyp/domain/farm/
-src/test/java/com/aicyp/domain/prediction/
+src/test/java/com/aicyp/domain/<feature>/
 ```
 
-Every feature must have its own test namespace.
+Each feature owns its test namespace.
 
 ---
 
-### 7. No Layer-Based Reintroduction
+### 10. No Layer-Based Reintroduction
 
-The following top-level layer folders are forbidden:
+The following are forbidden at top level:
 
 * controller/
 * service/
@@ -189,7 +265,7 @@ The following top-level layer folders are forbidden:
 * model/
 * dto/
 
-All functionality must live under feature folders.
+All functionality must live inside feature folders.
 
 ---
 

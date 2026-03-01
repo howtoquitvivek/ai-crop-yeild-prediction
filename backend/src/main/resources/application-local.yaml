@@ -1,0 +1,12 @@
+spring:
+  data:
+    mongodb:
+      uri: ${MONGO_URI}
+
+  jackson:
+    serialization:
+      indent_output: true
+    
+  devtools:
+    restart:
+      enabled: true
