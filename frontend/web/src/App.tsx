@@ -2,6 +2,8 @@ import { useContext, useState } from "react";
 import { AuthContext } from "./context/AuthContext";
 import Login from "./pages/Login";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 function App() {
   const { user, loading, logout } = useContext(AuthContext);
   const [response, setResponse] = useState("");
@@ -12,7 +14,7 @@ function App() {
   const callBackend = async () => {
     const token = await user.getIdToken();
 
-    const res = await fetch("http://localhost:8080/api/test", {
+    const res = await fetch(`${API_URL}/api/v1/auth/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -27,6 +29,7 @@ function App() {
       <h2>Logged in as {user.email}</h2>
 
       <button onClick={callBackend}>Call Backend</button>
+
       <button onClick={logout} style={{ marginLeft: "10px" }}>
         Logout
       </button>

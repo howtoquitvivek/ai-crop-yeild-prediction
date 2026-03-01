@@ -32,5 +32,6 @@ build/
 ### VS Code ###
 .vscode/
 
+## Secrets
 .env
-firebase-service-account.json
+firebase.b64

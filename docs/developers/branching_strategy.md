@@ -12,6 +12,7 @@ Rules:
 
 * Changes must come through Pull Requests
 * Must always remain buildable
+* No direct feature branches should target `main`
 
 ---
 
@@ -21,8 +22,11 @@ The `develop` branch serves as an integration branch for ongoing development.
 
 Rules:
 
-* Feature branches merge here first
-* Periodically merged into `main`
+* Feature branches must branch from `develop`
+* Feature branches merge into `develop`
+* Periodically merged into `main` when stable
+
+---
 
 ## Supporting Branches
 
@@ -80,14 +84,13 @@ refactor/sw-service
 
 ---
 
-
 ## Branch Creation Workflow
 
-1. Ensure local `main` is updated
+1. Ensure local `develop` is updated
 
 ```bash
-git checkout main
-git pull upstream main
+git checkout develop
+git pull origin develop
 ```
 
 2. Create a new branch
@@ -96,34 +99,44 @@ git pull upstream main
 git checkout -b feature/short-description
 ```
 
+---
+
 ## Merging Rules
 
 * All merges must occur via Pull Requests
+* Feature branches must target `develop`
+* Only `develop` may be merged into `main`
 * CI/build checks must pass before merge
+
+---
 
 ## Rebase vs Merge
 
 Preferred:
 
-* Rebase feature branches to keep history clean
+* Rebase feature branches onto `develop` to keep history clean
 
 ```bash
 git checkout feature/branch-name
-git rebase main
+git rebase develop
 ```
 
 Acceptable:
 
 * Merge when rebase is not practical
 
+---
+
 ## Branch Lifetime
 
 * Keep branches short-lived
 * Delete branches after merge
+
+---
 
 ## Best Practices
 
 * One concern per branch
 * Small, focused Pull Requests
 * Descriptive branch names
-* Regularly sync with upstream
+* Regularly sync with `develop`

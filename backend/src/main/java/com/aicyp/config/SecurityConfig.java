@@ -18,40 +18,67 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-  private final UserRepository userRepository;
+    private final UserRepository userRepository;
 
-  public SecurityConfig(UserRepository userRepository) {
-    this.userRepository = userRepository;
-  }
+    public SecurityConfig(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
 
-  @Bean
-  public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    @Bean
+    public FirebaseAuthFilter firebaseAuthFilter() {
+        return new FirebaseAuthFilter(userRepository);
+    }
 
-    http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
-        .csrf(csrf -> csrf.disable())
-        .sessionManagement(
-            session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .httpBasic(httpBasic -> httpBasic.disable())
-        .formLogin(form -> form.disable())
-        .authorizeHttpRequests(
-            auth -> auth.requestMatchers("/actuator/**").permitAll().anyRequest().authenticated())
-        .addFilterBefore(
-            new FirebaseAuthFilter(userRepository), UsernamePasswordAuthenticationFilter.class);
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
-    return http.build();
-  }
+        http
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .csrf(csrf -> csrf.disable())
+            .sessionManagement(session ->
+                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            )
+            .httpBasic(httpBasic -> httpBasic.disable())
+            .formLogin(form -> form.disable())
+            .authorizeHttpRequests(auth -> auth
 
-  @Bean
-  public CorsConfigurationSource corsConfigurationSource() {
-    CorsConfiguration configuration = new CorsConfiguration();
+                // Public endpoints
+                .requestMatchers("/api/v1/health/**").permitAll()
+                .requestMatchers("/actuator/**").permitAll()
 
-    configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://127.0.0.1:5173"));
-    configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-    configuration.setAllowedHeaders(List.of("*"));
-    configuration.setAllowCredentials(true);
+                // Everything under API v1 requires authentication
+                .requestMatchers("/api/v1/**").authenticated()
 
-    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-    source.registerCorsConfiguration("/**", configuration);
-    return source;
-  }
+                // Deny everything else explicitly
+                .anyRequest().denyAll()
+            )
+            .addFilterBefore(firebaseAuthFilter(),
+                UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        configuration.setAllowedOrigins(
+            List.of("http://localhost:5173", "http://127.0.0.1:5173")
+        );
+
+        configuration.setAllowedMethods(
+            List.of("GET", "POST", "PUT", "DELETE", "OPTIONS")
+        );
+
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source =
+            new UrlBasedCorsConfigurationSource();
+
+        source.registerCorsConfiguration("/**", configuration);
+
+        return source;
+    }
 }
