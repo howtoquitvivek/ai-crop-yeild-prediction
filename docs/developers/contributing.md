@@ -113,7 +113,7 @@ git rebase develop
 
 ## Before Opening a Pull Request
 
-You must verify your changes locally.
+CI will enforce build and test checks. Contributors are encouraged to verify locally before pushing.
 
 Backend:
 
@@ -136,8 +136,6 @@ cd frontend/web
 npm run lint
 npm run build
 ```
-
-Your PR will not be approved if the project does not build.
 
 ---
 

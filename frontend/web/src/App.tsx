@@ -14,7 +14,7 @@ function App() {
   const callBackend = async () => {
     const token = await user.getIdToken();
 
-    const res = await fetch(`${API_URL}/api/test`, {
+    const res = await fetch(`${API_URL}/api/v1/auth/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },

@@ -1,10 +1,20 @@
 from fastapi import FastAPI
-from app.api.predict import router as predict_router
-from app.api.recommend import router as recommend_router
-from app.api.health import router as health_router
+from app.api import health, predict
+from app.config import settings
 
-app = FastAPI()
+app = FastAPI(
+    title="AICYP ML Service",
+    version=settings.API_VERSION
+)
 
-app.include_router(predict_router)
-app.include_router(recommend_router)
-app.include_router(health_router)
+app.include_router(health.router, prefix="/api/v1")
+app.include_router(predict.router, prefix="/api/v1")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "app.main:app",
+        host=settings.HOST,
+        port=settings.PORT,
+        reload=True
+    )

@@ -1,22 +1,21 @@
-# Canonical Project Structure
+# AICYP — Canonical Architecture Specification
 
-This section defines the complete and authoritative directory structure of the aicyp repository.
+This document defines the authoritative structure and architectural rules of the AICYP repository.
 
-The structure is mandatory and must be preserved to ensure:
+The structure is mandatory and must not be modified casually.
 
-* Separation of concerns
+The goal is to enforce:
+
 * Service isolation
-* Clean architecture
-* Feature modularity
-* Testability
-* CI/CD compatibility
-* Production readiness
-
-The structure enforces architectural boundaries and must not be modified casually.
+* Feature-based modularity
+* Clean architecture boundaries
+* Stateless security
+* Contract-first API governance
+* Long-term maintainability
 
 ---
 
-## Root Structure
+# 1. Repository Structure
 
 ```
 aicyp/
@@ -34,31 +33,17 @@ aicyp/
 
 Each top-level folder represents an isolated system component.
 
----
-
-# Backend — Spring Boot Service (Feature-Based Packaging)
-
-The backend follows **feature-based packaging**, not layer-based packaging.
-
-This ensures scalability, domain isolation, and long-term maintainability.
-
-In addition to structural rules, the backend enforces:
-
-* Stateless authentication (Firebase)
-* Role-based authorization
-* DTO separation
-* Global exception handling
-* Request validation
-* Strict visibility discipline
-* Automated quality enforcement
-
-Detailed backend architecture is defined in: [backend-architecture.md](backend-architecture.md)
-
-This document is authoritative for internal backend mechanics.
+No cross-service coupling is allowed.
 
 ---
 
-## Backend Structure
+# 2. Backend — Spring Boot Service
+
+The backend follows **feature-based packaging**.
+
+Layer-based top-level folders are forbidden.
+
+## 2.1 Backend Structure
 
 ```
 backend/
@@ -66,210 +51,246 @@ backend/
 │   ├── AicypApplication.java
 │   │
 │   ├── common/
-│   │   ├── ApiException.java
-│   │   ├── GlobalExceptionHandler.java
-│   │   └── ...
-│   │
 │   ├── config/
-│   │   ├── SecurityConfig.java
-│   │   ├── FirebaseConfig.java
-│   │   └── ...
-│   │
 │   ├── security/
-│   │   └── FirebaseAuthFilter.java
 │   │
 │   └── domain/
-│       ├── admin/
-│       ├── analytics/
-│       ├── farm/
 │       ├── health/
-│       ├── meta/
+│       ├── user/
+│       ├── farm/
 │       ├── prediction/
 │       │   └── client/
 │       ├── recommendation/
-│       └── user/
-│           ├── User.java
-│           ├── Role.java
-│           ├── UserRepository.java
-│           ├── UserController.java
-│           ├── UserMapper.java
-│           └── dto/
-│               ├── CreateUserRequest.java
-│               └── UserResponse.java
+│       ├── analytics/
+│       ├── admin/
+│       └── meta/
 │
 ├── src/main/resources/
 │   ├── application.yml
-│   ├── application-dev.yml
-│   ├── application-prod.yml
-│   └── logback-spring.xml
+│   └── application-local.yml
 │
-├── src/test/java/com/aicyp/domain/
-│   └── ...
+├── src/test/java/com/aicyp/
 │
-├── checkstyle.xml
 ├── Dockerfile
 └── pom.xml
 ```
 
 ---
 
-## Backend Architectural Rules
-
-### 1. Feature-Based Packaging (Mandatory)
+## 2.2 Feature-Based Packaging Rule (Mandatory)
 
 Each feature inside `domain/` must contain:
 
-* Controller
+* Controller (public)
 * Service (package-private)
 * Repository (package-private)
 * Entity (package-private)
-* DTOs
+* DTOs (public)
 * Mapper (package-private)
-* Optional internal helpers
 
 Everything related to a feature must live inside that feature folder.
 
-No cross-feature scattering is allowed.
+No cross-feature scattering.
+
+The following are forbidden at top level:
+
+```
+controller/
+service/
+repository/
+model/
+dto/
+```
 
 ---
 
-### 2. Infrastructure Packages
+## 2.3 Infrastructure Packages
 
-Remain outside `domain/`:
+Outside `domain/`:
 
-* `config/` — Application configuration
-* `security/` — Authentication and authorization filters
-* `common/` — Exceptions and cross-cutting logic
-
-These contain shared infrastructure components.
+* `config/` → Spring configuration (Security, Firebase, etc.)
+* `security/` → Authentication filter logic
+* `common/` → ApiResponse, exceptions, shared utilities
 
 ---
 
-### 3. Security Model (Mandatory)
+# 3. Backend Runtime Model
 
-The backend enforces:
+## 3.1 Stateless Security
 
-* Firebase JWT verification
-* Stateless authentication
-* Role-based authorization
-* Method-level access control (`@PreAuthorize`)
+* Authentication via Firebase ID Tokens
+* No sessions
+* No server-side login state
+* JWT verified on every request
 
-All protected endpoints require valid Bearer tokens.
+All API routes are versioned under:
 
-Roles currently supported:
+```
+/api/v1
+```
+
+Security configuration enforces:
+
+* `/api/v1/health/**` → public
+* `/api/v1/**` → authenticated
+* Everything else → denied
+
+Method-level authorization is enforced via:
+
+```
+@PreAuthorize
+```
+
+Supported roles:
 
 * FARMER
 * ADMIN
 
-Unauthorized access must return HTTP 403.
+Unauthorized access → 403
 
 ---
 
-### 4. DTO Separation Rule (Strict)
+## 3.2 Firebase Credential Handling
 
-Entities must never be returned directly.
+Firebase service account credentials must be supplied via environment variable:
 
-Controllers must return DTOs only.
+```
+FIREBASE_CREDENTIALS_BASE64
+```
 
-Mapping must be explicit via mappers.
+The backend decodes this at startup.
 
-This prevents:
+Service account JSON files must never be committed.
 
-* Internal field leakage
-* Accidental schema exposure
-* Tight API coupling to persistence
+Firebase can be disabled using:
+
+```
+firebase.enabled=false
+```
+
+Primarily for test environments.
 
 ---
 
-### 5. Validation Layer (Mandatory)
+## 3.3 Request Lifecycle
+
+1. HTTP Request
+2. CORS validation
+3. FirebaseAuthFilter executes
+4. JWT verified
+5. User loaded or auto-created
+6. SecurityContext populated
+7. Method-level authorization evaluated
+8. Controller executed
+9. DTO returned
+10. GlobalExceptionHandler handles errors
+
+All requests are stateless.
+
+---
+
+# 4. API Contract Governance
+
+The authoritative API contract is:
+
+```
+docs/api/aicyp-openapi.yaml
+```
+
+Rules:
+
+* All endpoints must match the OpenAPI specification.
+* Controllers must return `ApiResponse<T>`.
+* Entities must never be exposed directly.
+* Contract changes must be reflected in YAML before implementation.
+
+API versioning strategy:
+
+```
+/api/v1
+/api/v2 (future)
+```
+
+Breaking changes require a new version.
+
+---
+
+# 5. DTO and Validation Rules
+
+* Controllers must return DTOs only.
+* Entities must never leave the domain layer.
+* Mapping must be explicit.
+* No automatic mapping libraries.
+
+Validation uses:
+
+```
+spring-boot-starter-validation
+```
 
 All request bodies must use:
-
-```
-jakarta.validation
-```
-
-Validation failures must return structured 400 responses.
-
-Controllers must use:
 
 ```
 @Valid
 ```
 
-No manual null-check validation is allowed.
+Validation errors return structured 400 responses via `GlobalExceptionHandler`.
 
 ---
 
-### 6. Exception Handling Policy
+# 6. Exception Handling Policy
 
-All exceptions must be handled globally via:
+All exceptions are handled centrally via:
 
 ```
 @RestControllerAdvice
 ```
 
-Responses must be structured JSON.
+Responses use `ApiResponse<T>`.
 
-No stack traces must leak to clients.
+Stack traces must never leak to clients.
 
----
+Handled cases:
 
-### 7. Visibility Discipline
-
-Inside each feature:
-
-* Controllers → `public`
-* DTOs → `public`
-* Services → package-private
-* Repositories → package-private
-* Mappers → package-private
-* Entities → package-private (unless required by framework)
-
-No unnecessary `public` classes allowed.
+* ApiException → 400
+* Validation errors → 400
+* AccessDeniedException → 403
+* Generic exception → 500
 
 ---
 
-### 8. Quality Enforcement
+# 7. Persistence Model
 
-The backend enforces:
+Database: MongoDB Atlas.
 
-* Checkstyle (code style)
-* Spotless (formatting)
-* SpotBugs (static analysis)
-* JaCoCo (coverage reporting)
+Collections are feature-scoped.
 
-Build failures must block violations.
+Repositories must not be injected across features.
 
----
-
-### 9. Test Symmetry Rule
-
-Test structure must mirror production structure:
-
-```
-src/test/java/com/aicyp/domain/<feature>/
-```
-
-Each feature owns its test namespace.
+No cross-feature persistence leakage.
 
 ---
 
-### 10. No Layer-Based Reintroduction
+# 8. CI and Quality Enforcement
 
-The following are forbidden at top level:
+The backend CI pipeline enforces:
 
-* controller/
-* service/
-* repository/
-* model/
-* dto/
+* Successful Maven build
+* Test compilation
+* Test execution (if present)
+* Static compilation integrity
 
-All functionality must live inside feature folders.
+Pull requests to `develop` and `main` must pass CI before merge.
+
+Future enhancements may include:
+
+* Dependency scanning
+* Integration testing
+* Coverage enforcement
 
 ---
 
-# ML Service — Python Microservice
+# 9. ML Service — Python Microservice
 
 ```
 ml-service/
@@ -284,23 +305,21 @@ ml-service/
 ├── tests/
 ├── requirements.txt
 ├── pyproject.toml
-├── .flake8
 └── Dockerfile
 ```
 
-Design rules:
+Rules:
 
 * API layer must not contain ML logic
-* Models must be modular and swappable
+* Models must be modular
 * Preprocessing must be isolated
-* Optimization logic must be independent
-* Model registry manages version control
+* ML service must be independently deployable
 
-ML service must remain independently deployable.
+No direct client access to ML service is allowed.
 
 ---
 
-# Frontend
+# 10. Frontend
 
 ```
 frontend/
@@ -309,16 +328,17 @@ frontend/
 └── mobile/
 ```
 
-Rules:
+Currently active:
 
-* Web is Phase 1 farmer interface
-* Admin is system management interface
-* Mobile is future Expo application
-* Each frontend module must remain isolated
+* `frontend/web`
+
+All frontend modules must remain isolated.
+
+Frontend must consume backend via `/api/v1`.
 
 ---
 
-# Infrastructure
+# 11. Infrastructure
 
 ```
 infra/
@@ -331,22 +351,21 @@ infra/
 Rules:
 
 * All deployment logic resides in `infra/`
-* Docker compose files must support local development
-* Production configuration must not mix with development config
-* Kubernetes manifests are future-ready
+* Production config must not mix with development config
+* Secrets must never be committed
 
 ---
 
-# Architectural Governance Rules
+# 12. Architectural Governance Rules
 
 1. No structural changes without documentation update.
-2. No cross-feature direct dependency unless explicitly justified.
-3. All features must follow visibility discipline.
+2. No cross-feature direct dependency.
+3. Controllers must remain thin.
 4. No business logic inside controllers.
-5. Entities must never be exposed directly in API responses.
-6. OpenAPI specification remains the authoritative API contract.
-7. Refactoring structure after stabilization should be minimized.
+5. Entities must never be exposed in API responses.
+6. OpenAPI YAML is the authoritative API contract.
+7. Refactoring structure after stabilization must be minimized.
 
 ---
 
-End of architectural structure definition.
+End of Architecture Specification.
