@@ -12,6 +12,9 @@ import {
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { signOut } from "firebase/auth";
+import { auth } from "@/api/firebase";
+import { useNavigate } from "react-router-dom";
 
 const navItems = [
   { title: "Overview", url: "/", icon: LayoutDashboard },
@@ -25,6 +28,19 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+
+      // redirect to login
+      navigate("/login");
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -65,8 +81,10 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        {/* TODO: Wire to Firebase signOut when auth is implemented */}
-        <button className="flex items-center gap-2 w-full p-3 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors">
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-2 w-full p-3 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors"
+        >
           <LogOut className="h-4 w-4" />
           {!collapsed && <span>Logout</span>}
         </button>

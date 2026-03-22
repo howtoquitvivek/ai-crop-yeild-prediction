@@ -1,5 +1,5 @@
 import { Sprout, BarChart3, TrendingUp, Cpu, Droplets, MessageSquare } from "lucide-react";
-
+import { useDashboard } from "@/hooks/useDashboard";
 /**
  * Dashboard / Overview page for farmers.
  * All data here is placeholder — backend team should replace with real API calls:
@@ -9,23 +9,28 @@ import { Sprout, BarChart3, TrendingUp, Cpu, Droplets, MessageSquare } from "luc
  *   - Model version: GET /api/v1/admin/models (or from prediction metadata)
  */
 
-const kpis = [
-  { label: "Active Farms", value: "4", icon: Sprout, color: "text-primary" },
-  { label: "Predictions This Season", value: "12", icon: BarChart3, color: "text-info" },
-  { label: "Avg Predicted Yield", value: "3.4 t/ha", icon: TrendingUp, color: "text-warning" },
-  { label: "Model Version", value: "v1.3", icon: Cpu, color: "text-muted-foreground" },
-];
-
-const yieldTrend = [
-  { month: "Jan", value: 40 },
-  { month: "Feb", value: 55 },
-  { month: "Mar", value: 60 },
-  { month: "Apr", value: 70 },
-  { month: "May", value: 65 },
-  { month: "Jun", value: 80 },
-];
-
 const DashboardPage = () => {
+  const { farms, predictions, overview, trend, loading } = useDashboard();
+  const farmCount = farms?.data?.content?.length || farms?.data?.length || 0;
+  const predictionCount =
+    predictions?.data?.content?.length || predictions?.data?.length || 0;
+
+  const avgYield = overview?.data?.averageYield || "—";
+  const modelVersion = overview?.data?.modelVersion || "—";
+
+  const kpis = [
+    { label: "Active Farms", value: farmCount, icon: Sprout, color: "text-primary" },
+    { label: "Predictions", value: predictionCount, icon: BarChart3, color: "text-info" },
+    { label: "Avg Yield", value: avgYield, icon: TrendingUp, color: "text-warning" },
+    { label: "Model Version", value: modelVersion, icon: Cpu, color: "text-muted-foreground" },
+  ];
+
+  const yieldTrend =
+    trend?.data?.map((item: any) => ({
+      month: item.month,
+      value: item.value,
+    })) || [];
+
   return (
     <div className="space-y-8">
       <div>
